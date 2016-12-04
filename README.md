@@ -1,7 +1,8 @@
 # RibbaPi
 RibbaPi - APA102 based 16x16 LED-Matrix fitted inside Ribba picture frame, controlled by Raspberry Pi in Python
 
-A YouTube video will be online in a few hours and will be linked here.
+See documentation of the build process and what RibbaPi does in this video:
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/UbVjETJd87c/0.jpg)](http://www.youtube.com/watch?v=UbVjETJd87c "RibbaPi - 16x16 APA102 LED matrix build in a Ribba frame controlled by Raspberry Pi with Python")
 
 With RibbaPi I had the goal to build a programmable RGB LED matrix. I wanted to use APA102 leds - or Dotstars, as Adafruit calls them. Also, I wanted to control those with a Raspberry Pi, using only Python if that would be feasible. It turns out that it is. I also wanted the matrix to be 16x16 at least. Because I was a little afraid of the maximal power need of 60mA per LED (over 15A with 256 LEDs) plus the power the Raspberry Pi uses - I went with 16x16. It turns out that the process of building this project was fun but quite time consuming.
 
@@ -32,14 +33,9 @@ This are some, certainly not all, things that I used to build my RibbaPi matrix:
 - some more wires, plugs, fuse and stuff
 - I did NOT use a capacitor as seems recommended in many WS2812b tutorials. With my power supply, the APA102 LEDs, the way of soldering EACH LED there seems no need to add an additional capacitor. Please correct me if I am wrong.
 
-
-
-
-
 On the software side, this project has only started.
 This is supported yet:
 - configure the physical setup of your matrix design: origin location (top-left, top-right, buttom-left, buttom-right), wiring mode (zig-zag, row-by-row) and direction (horizontally, vertically)
 - support for matrix sizes other then 16x16 should be working for the most parts
-- 
-TODO 
+- TODO 
 
