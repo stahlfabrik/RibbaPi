@@ -38,6 +38,19 @@ class GameframeAnimation(threading.Thread):
 
         self.load_frames()
         self.read_config()
+
+        if play_for == 0:
+            self.duration = self.intrinsic_duration()
+        else:
+            self.duration = play_for
+
+        print(self)
+
+        self.started = time.time()
+        if autoplay:
+            self.start()
+
+    def intrinsic_duration(self):
         # FIXME panoff needs accounting
         durX = 0
         if self.moveX > 0 and len(self.frames) > 0:
@@ -45,14 +58,7 @@ class GameframeAnimation(threading.Thread):
         durY = 0
         if self.moveY > 0 and len(self.frames) > 0:
             durY = (self.frames[0].shape[0] / self.moveY) * self.hold / 1000
-        self.duration = \
-            max([play_for, len(self.frames)*self.hold/1000, durX, durY])
-        self.started = time.time()
-
-        print(self)
-
-        if autoplay:
-            self.start()
+        return max([len(self.frames)*self.hold/1000, durX, durY])
 
     def __str__(self):
         return "Path: {}\n"\
