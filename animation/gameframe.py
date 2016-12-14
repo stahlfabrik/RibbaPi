@@ -19,20 +19,18 @@
 import time
 import numpy as np
 from PIL import Image
-import apa102_matrix
 
 import configparser
 from pathlib import Path
-import threading
+
+from animation.abstract_animation import AbstractAnimation
 
 # TODO: Subfolders have not been implemented yet.
 
 
-class GameframeAnimation(threading.Thread):
-    def __init__(self, folder, matrix, play_for=5, autoplay=True):
-        super().__init__()
-        self.matrix = matrix
-        self.running = False
+class GameframeAnimation(AbstractAnimation):
+    def __init__(self,  width, height, frame_queue, folder, play_for=10):
+        super().__init__(width, height, frame_queue)
         self.folder = Path(folder).resolve()
         self.name = self.folder.name
 
@@ -45,10 +43,6 @@ class GameframeAnimation(threading.Thread):
             self.duration = play_for
 
         print(self)
-
-        self.started = time.time()
-        if autoplay:
-            self.start()
 
     def intrinsic_duration(self):
         # FIXME panoff needs accounting
@@ -78,18 +72,10 @@ class GameframeAnimation(threading.Thread):
                          self.move_loop,
                          self.panoff)
 
-    def run(self):
-        self.running = True
-        self.animate()
-
-    def stop(self):
-        self.running = False
-
     def animate(self):
         while self.running:
             for frame in self.rendered_frames():
-                self.matrix.set_rgb_buffer_with_flat_values(frame.flatten())
-                self.matrix.show(gamma=True)
+                self.frame_queue.put(frame.copy())
                 time.sleep(self.hold/1000)
                 if (time.time() - self.started) > self.duration:
                     break
@@ -109,8 +95,8 @@ class GameframeAnimation(threading.Thread):
 
         x = 0
         y = 0
-        DX = 16
-        DY = 16
+        DX = self.width
+        DY = self.height
 
         if end:
             while True:
@@ -181,11 +167,3 @@ class GameframeAnimation(threading.Thread):
                 parser.getboolean('translate', 'panoff', fallback=False)
             self.nextFolder = \
                 parser.getboolean('translate', 'nextFolder', fallback=None)
-
-
-if __name__ == "__main__":
-    m = apa102_matrix.Apa102Matrix()
-    for p in Path("resources/animations/gameframe/").resolve().glob("*"):
-        if p.is_dir():
-            a = GameframeAnimation(str(p), m)
-            a.join()
