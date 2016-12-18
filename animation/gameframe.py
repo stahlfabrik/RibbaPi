@@ -29,34 +29,34 @@ from animation.abstract_animation import AbstractAnimation
 
 
 class GameframeAnimation(AbstractAnimation):
-    def __init__(self,  width, height, frame_queue, folder, play_for=10):
-        super().__init__(width, height, frame_queue)
+    def __init__(self,  width, height, frame_queue, repeat, folder):
+        super().__init__(width, height, frame_queue, repeat)
         self.folder = Path(folder).resolve()
-        self.name = self.folder.name
+        self.name = "gameframe.{}".format(self.folder.name)
 
         self.load_frames()
         self.read_config()
 
-        if play_for == 0:
-            self.duration = self.intrinsic_duration()
-        else:
-            self.duration = play_for
+        # if play_for == 0:
+        #     self.duration = self.intrinsic_duration()
+        # else:
+        #     self.duration = play_for
 
-        print(self)
+        # print(self)
 
-    def intrinsic_duration(self):
-        # FIXME panoff needs accounting
-        durX = 0
-        if self.moveX > 0 and len(self.frames) > 0:
-            durX = (self.frames[0].shape[1] / self.moveX) * self.hold / 1000
-        durY = 0
-        if self.moveY > 0 and len(self.frames) > 0:
-            durY = (self.frames[0].shape[0] / self.moveY) * self.hold / 1000
-        return max([len(self.frames)*self.hold/1000, durX, durY])
+    # def intrinsic_duration(self):
+    #     # FIXME panoff needs accounting
+    #     durX = 0
+    #     if self.moveX > 0 and len(self.frames) > 0:
+    #         durX = (self.frames[0].shape[1] / self.moveX) * self.hold / 1000
+    #     durY = 0
+    #     if self.moveY > 0 and len(self.frames) > 0:
+    #         durY = (self.frames[0].shape[0] / self.moveY) * self.hold / 1000
+    #     return max([len(self.frames)*self.hold/1000, durX, durY])
 
     def __str__(self):
         return "Path: {}\n"\
-               "Name: {} frames: {} shape: {} duration: {}\n"\
+               "Name: {} frames: {} shape: {}\n"\
                "hold: {} loop: {} moveX: {} moveY: {} moveloop: {} "\
                "panoff: {}\n"\
                "".format(self.folder,
@@ -64,7 +64,6 @@ class GameframeAnimation(AbstractAnimation):
                          str(len(self.frames)),
                          self.frames[0].shape if len(self.frames) else
                          "no frames available",
-                         self.duration,
                          self.hold,
                          self.loop,
                          self.moveX,
@@ -72,21 +71,53 @@ class GameframeAnimation(AbstractAnimation):
                          self.move_loop,
                          self.panoff)
 
-    def animate(self):
-        while self.running:
-            for frame in self.rendered_frames():
-                self.frame_queue.put(frame.copy())
-                time.sleep(self.hold/1000)
-                if (time.time() - self.started) > self.duration:
-                    break
-            self.running = False
-
+    # def __str__(self):
+    #     return "Path: {}\n"\
+    #            "Name: {} frames: {} shape: {} duration: {}\n"\
+    #            "hold: {} loop: {} moveX: {} moveY: {} moveloop: {} "\
+    #            "panoff: {}\n"\
+    #            "".format(self.folder,
+    #                      self.name,
+    #                      str(len(self.frames)),
+    #                      self.frames[0].shape if len(self.frames) else
+    #                      "no frames available",
+    #                      self.duration,
+    #                      self.hold,
+    #                      self.loop,
+    #                      self.moveX,
+    #                      self.moveY,
+    #                      self.move_loop,
+    #                      self.panoff)
     def load_frames(self):
         self.frames = []
         for bmp in list(sorted(self.folder.glob("*.bmp"),
                                key=lambda bmpfile: int(bmpfile.stem))):
             im = Image.open(str(bmp))
             self.frames.append(np.array(im))
+
+    def read_config(self):
+        self.hold = 100
+        self.loop = True
+        self.moveX = 0
+        self.moveY = 0
+        self.move_loop = False
+        self.panoff = False
+        self.nextFolder = None
+
+        config = self.folder.joinpath("config.ini")
+        if config.is_file():
+            parser = configparser.ConfigParser()
+            parser.read(str(config))
+            self.hold = int(parser.get('animation', 'hold', fallback='100'))
+            self.loop = parser.getboolean('animation', 'loop', fallback=True)
+            self.moveX = int(parser.get('translate', 'moveX', fallback='0'))
+            self.moveY = int(parser.get('translate', 'moveY', fallback='0'))
+            self.move_loop = \
+                parser.getboolean('translate', 'loop', fallback=False)
+            self.panoff = \
+                parser.getboolean('translate', 'panoff', fallback=False)
+            self.nextFolder = \
+                parser.getboolean('translate', 'nextFolder', fallback=None)
 
     def rendered_frames(self):
         """Generator function to iterate through all frames of animation"""
@@ -130,40 +161,45 @@ class GameframeAnimation(AbstractAnimation):
 
                 if (self.moveX > 0 and cur_x <= 0) or \
                    (self.moveX < 0 and cur_x >= (w - DX)):
-                    if self.move_loop:
-                        x = 0
+                    break
+                    # if self.move_loop:
+                    #     x = 0
 
                 if (self.moveY > 0 and (cur_y + DY) >= h) or \
                    (self.moveY < 0 and cur_y <= 0):
-                    if self.move_loop:
-                        y = 0
+                    # if self.move_loop:
+                    #     y = 0
+                    break
 
+                # if i == end:
+                #     if self.loop or self.move_loop:
+                #         i = 0
+                #     else:
+                #         break
                 if i == end:
-                    if self.loop or self.move_loop:
+                    if ((self.loop or self.move_loop) and
+                        (((self.moveX > 0 and cur_x > 0) or
+                          (self.moveX < 0 and cur_x < (w - DX))) or
+                         ((self.moveY > 0 and (cur_y + DY) < h) or
+                          (self.moveY < 0 and cur_y > 0)))):
                         i = 0
                     else:
                         break
 
-    def read_config(self):
-        self.hold = 100
-        self.loop = True
-        self.moveX = 0
-        self.moveY = 0
-        self.move_loop = False
-        self.panoff = False
-        self.nextFolder = None
+    def animate(self):
+        while self._running:
+            for frame in self.rendered_frames():
+                if self._running:
+                    self.frame_queue.put(frame.copy())
+                else:
+                    break
+                time.sleep(self.hold/1000)
+                # if (time.time() - self.started) > self.duration:
+                #     break
+            if not self.repeat:
+                self._running = False
 
-        config = self.folder.joinpath("config.ini")
-        if config.is_file():
-            parser = configparser.ConfigParser()
-            parser.read(str(config))
-            self.hold = int(parser.get('animation', 'hold', fallback='100'))
-            self.loop = parser.getboolean('animation', 'loop', fallback=True)
-            self.moveX = int(parser.get('translate', 'moveX', fallback='0'))
-            self.moveY = int(parser.get('translate', 'moveY', fallback='0'))
-            self.move_loop = \
-                parser.getboolean('translate', 'loop', fallback=False)
-            self.panoff = \
-                parser.getboolean('translate', 'panoff', fallback=False)
-            self.nextFolder = \
-                parser.getboolean('translate', 'nextFolder', fallback=None)
+    def get_kwargs(self):
+        return {"width": self.width, "height": self.height,
+                "frame_queue": self.frame_queue, "repeat": self.repeat,
+                "folder": self.folder}

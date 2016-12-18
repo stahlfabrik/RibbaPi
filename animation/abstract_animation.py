@@ -26,25 +26,32 @@ import time
 
 
 class AbstractAnimation(abc.ABC, threading.Thread):
-    def __init__(self, width, height, frame_queue):
-        super().__init__()
+    def __init__(self, width, height, frame_queue, repeat):
+        super().__init__(daemon=True)
         self.width = width
         self.height = height
         self.frame_queue = frame_queue
-        self.running = False
+        self.repeat = repeat
+
+        self._running = False
 
     def run(self):
         """This is the run method from threading.Thread"""
-        self.running = True
         self.started = time.time()
+        self._running = True
         self.animate()
 
     # def start(self):
     """We do not overwrite this. It is from threading.Thread"""
 
     def stop(self):
-        self.running = False
+        self._running = False
 
     @abc.abstractmethod
     def animate(self):
         """This is where frames are put to the frame_queue in correct time"""
+
+    @abc.abstractmethod
+    def get_kwargs(self):
+        """This method must return all init args to be able to create identical
+        animation"""
