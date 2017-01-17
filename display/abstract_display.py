@@ -42,9 +42,11 @@ class AbstractDisplay(abc.ABC):
     def buffer(self, value):
         if isinstance(value, np.ndarray):
             if self._buffer.shape == value.shape:
+                #del self._buffer
                 self._buffer = value
 
     def clear_buffer(self):
+        #del self._buffer
         self._buffer = np.zeros_like(self._buffer)
 
     @abc.abstractmethod
@@ -74,6 +76,7 @@ class AbstractDisplay(abc.ABC):
             rgb_values = rgb_values.reshape(self.height, self.width, 3)
         except:
             return
+        #del self._buffer
         self._buffer = rgb_values
 
     def create_test_pattern(self):

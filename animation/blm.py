@@ -18,29 +18,24 @@
 
 import time
 import numpy as np
-import apa102_matrix
 from pathlib import Path
-import threading
+
+from animation.abstract_animation import AbstractAnimation
 
 
-class BlinkenlightsAnimation(threading.Thread):
-    def __init__(self, path, matrix, foregound_color=(255, 255, 255),
-                 background_color=(10, 10, 10), padding_color=(60, 60, 60),
-                 play_for=0, loop=False, autoplay=True):
-        super().__init__()
-        self.matrix = matrix
-        self.running = False
-        self.path = Path(path).resolve()
-        self.name = self.path.stem
+class BlmAnimation(AbstractAnimation):
+    def __init__(self, width, height, frame_queue, repeat, path,
+                 foregound_color=(255, 255, 255),
+                 background_color=(10, 10, 10),
+                 padding_color=(60, 60, 60)):
+        super().__init__(width, height, frame_queue, repeat)
+
+        self.path = Path(path)
+        if not self.path.is_file():
+            raise FileNotFoundError
+        self.name = "blm.{}".format(self.path.stem)
 
         self.load_frames()
-
-        if play_for == 0:
-            self.duration = self.intrinsic_duration()
-        else:
-            self.duration = play_for
-
-        self.loop = loop
 
         self.foregound_color = foregound_color
         self.background_color = background_color
@@ -48,15 +43,11 @@ class BlinkenlightsAnimation(threading.Thread):
 
         print(self)
 
-        self.started = time.time()
-        if autoplay:
-            self.start()
-
     def intrinsic_duration(self):
         ret = 0
         for item in self.frames:
             ret += item["hold"]
-        return ret
+        return ret/1000.0
 
     def __str__(self):
         return "Path: {} file: {} frames: {} shape: {} duration: {}\n"\
@@ -66,25 +57,7 @@ class BlinkenlightsAnimation(threading.Thread):
                          (len(self.frames[0]["frame"]),
                           len(self.frames[0]["frame"][0])) if len(self.frames)
                          else "no frames available",
-                         self.duration)
-
-    def run(self):
-        self.running = True
-        self.animate()
-
-    def stop(self):
-        self.running = False
-
-    def animate(self):
-        #TODO needs quick exit
-        while self.running:
-            for frame in self.rendered_frames():
-                self.matrix.set_rgb_buffer_with_flat_values(frame["frame"].flatten())
-                self.matrix.show(gamma=True)
-                time.sleep(frame["hold"]/1000)
-                if (time.time() - self.started) > self.duration:
-                    break
-            self.running = False
+                         self.intrinsic_duration())
 
     def load_frames(self):
         self.frames = []
@@ -105,86 +78,92 @@ class BlinkenlightsAnimation(threading.Thread):
                     frame.append(list(line))
             if len(frame):
                 self.frames.append({"hold": hold, "frame": frame})
-            #print(self.frames)
-            #self.frames.append(np.array(im))
+        if len(self.frames) == 0:
+            raise AttributeError
+
+    def animate(self):
+        while self._running:
+            for frame in self.rendered_frames():
+                if self._running:
+                    self.frame_queue.put(frame["frame"].copy())
+                else:
+                    break
+                time.sleep(frame["hold"]/1000)
+            if self.repeat > 0:
+                self.repeat -= 1
+            elif self.repeat == 0:
+                self._running = False
+
 
     def rendered_frames(self):
         """
         Generator function to iterate through all frames of animation.
         Cropped to fit matrix size.
         """
-        i = 0
-        end = len(self.frames)
-
-        if end:
-            while True:
-                frame = self.frames[i]
+        for frame in self.frames:
+            try:
                 array = np.array(frame["frame"], dtype=np.uint8)
-                array = np.dstack((array, array, array))
+            except:
+                continue
+            array = np.dstack((array, array, array))
 
-                ones = array == 1
-                zeros = array == 0
+            # indices where to find the ones and the zeros in the frame
+            # needed to replace with a color
+            ones = array == 1
+            zeros = array == 0
 
-                np.putmask(array, ones, self.foregound_color)
-                np.putmask(array, zeros, self.background_color)
+            np.putmask(array, ones, self.foregound_color)
+            np.putmask(array, zeros, self.background_color)
 
-                (h, w, b) = array.shape
+            (h, w, b) = array.shape
 
-                diff_h = h - self.matrix.num_rows
+            diff_h = h - self.height
 
-                diff_w = w - self.matrix.num_cols
+            diff_w = w - self.width
 
-                diff_h_top = abs(diff_h//2)
-                diff_h_bottom = abs(diff_h) - diff_h_top
+            diff_h_top = abs(diff_h//2)
+            diff_h_bottom = abs(diff_h) - diff_h_top
 
-                diff_w_left = abs(diff_w//2)
-                diff_w_right = abs(diff_w) - diff_w_left
+            diff_w_left = abs(diff_w//2)
+            diff_w_right = abs(diff_w) - diff_w_left
 
-                # print(h, w, b, diff_h, diff_w, diff_h_top, diff_h_bottom,
-                #      diff_w_left, diff_w_right)
+            # print(h, w, b, diff_h, diff_w, diff_h_top, diff_h_bottom,
+            #      diff_w_left, diff_w_right)
 
-                if diff_h < 0:
-                    # padding
-                    array = np.pad(array, ((diff_h_top, diff_h_bottom),
-                                           (0, 0),
-                                           (0, 0)),
-                                   'constant',
-                                   constant_values=((self.padding_color,
-                                                     self.padding_color),
-                                                    (0, 0), (0, 0)))
-                elif diff_h > 0:
-                    # cropping
-                    array = array[diff_h_top:-diff_h_bottom, :, :]
+            if diff_h < 0:
+                # padding
+                array = np.pad(array, ((diff_h_top, diff_h_bottom),
+                                       (0, 0),
+                                       (0, 0)),
+                               'constant',
+                               constant_values=((self.padding_color,
+                                                 self.padding_color),
+                                                (0, 0), (0, 0)))
+            elif diff_h > 0:
+                # cropping
+                array = array[diff_h_top:-diff_h_bottom, :, :]
 
-                if diff_w < 0:
-                    # padding
-                    array = np.pad(array, ((0, 0),
-                                           (diff_w_left, diff_w_right),
-                                           (0, 0)),
-                                   'constant',
-                                   constant_values=((0, 0),
-                                                    (self.padding_color,
-                                                     self.padding_color),
-                                                    (0, 0)))
-                elif diff_w > 0:
-                    # cropping
-                    array = array[:, diff_w_left:-diff_w_right, :]
-                # print(array.shape)
+            if diff_w < 0:
+                # padding
+                array = np.pad(array, ((0, 0),
+                                       (diff_w_left, diff_w_right),
+                                       (0, 0)),
+                               'constant',
+                               constant_values=((0, 0),
+                                                (self.padding_color,
+                                                 self.padding_color),
+                                                (0, 0)))
+            elif diff_w > 0:
+                # cropping
+                array = array[:, diff_w_left:-diff_w_right, :]
+            # print(array.shape)
 
-                yield {"hold": frame["hold"], "frame": array}
+            yield {"hold": frame["hold"], "frame": array}
 
-                i += 1
-                if i == end:
-                    if self.loop:
-                        i = 0
-                    else:
-                        break
-
-
-if __name__ == "__main__":
-    m = apa102_matrix.Apa102Matrix()
-    for p in Path("resources/animations/162-blms/").resolve().glob("*.blm"):
-        print(p)
-        a = BlinkenlightsAnimation(str(p), m)
-        a.join()
-        #break
+    @property
+    def kwargs(self):
+        return {"width": self.width, "height": self.height,
+                "frame_queue": self.frame_queue, "repeat": self.repeat,
+                "path": self.path, "foregound_color": self.foregound_color,
+                "background_color": self.background_color,
+                "padding_color": self.padding_color}

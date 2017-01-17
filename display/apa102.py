@@ -64,15 +64,15 @@ class Origin(Enum):
 
 
 SPI_MAX_SPEED_HZ = 16000000  # 500000 is default
-DEFAULT_BRIGHTNESS = 5  # max: 31
+DEFAULT_BRIGHTNESS = 31  # max: 31
 DEFAULT_GAMMA = 2.22
 
 
 # class Apa102(AbstractDisplay, metaclass=Singleton):
 class Apa102(AbstractDisplay):
     def __init__(self, width=16, height=16, color_type=ColorType.bgr,
-                 wire_mode=WireMode.zig_zag, origin=Origin.bottom_left,
-                 orientation=Orientation.horizontally):
+                 wire_mode=WireMode.zig_zag, origin=Origin.top_left,
+                 orientation=Orientation.vertically):
         super().__init__(width, height)
 
         # init SPI interface
@@ -118,37 +118,51 @@ class Apa102(AbstractDisplay):
                                                      self.width,
                                                      4), dtype=np.int)
 
-        outer, inner = (self.height, self.width) if self.orientation == Orientation.horizontally else (self.width, self.height)
+        outer, inner = (self.height, self.width) if \
+            self.orientation == Orientation.horizontally else \
+                       (self.width, self.height)
         current_outer_count = 0
         outer_range = range(outer)
-        if (self.orientation == Orientation.horizontally and (self.origin == Origin.bottom_left or self.origin == Origin.bottom_right)) or \
-           (self.orientation == Orientation.vertically and (self.origin == Origin.top_right or self.origin == Origin.bottom_right)):
+        if (self.orientation == Orientation.horizontally and
+           (self.origin == Origin.bottom_left or
+                self.origin == Origin.bottom_right)) \
+                or \
+           (self.orientation == Orientation.vertically and
+           (self.origin == Origin.top_right or
+                self.origin == Origin.bottom_right)):
             outer_range = reversed(outer_range)
         for i in outer_range:
             current_inner_count = 0
             for j in range(inner):
-                mod = (0 if self.orientation == Orientation.horizontally and ((self.origin == Origin.bottom_left and outer % 2 == 0) or
-                                                                              (self.origin == Origin.bottom_right and outer % 2 == 1) or
-                                                                               self.origin == Origin.top_right)
-                            or
-                            self.orientation == Orientation.vertically and ((self.origin == Origin.top_right and outer % 2 == 0) or
-                                                                            (self.origin == Origin.bottom_right and outer % 2 == 1) or
-                                                                             self.origin == Origin.bottom_left)
-                         else 1)
+                mod = (0 if self.orientation == Orientation.horizontally and
+                       ((self.origin == Origin.bottom_left and
+                        outer % 2 == 0) or
+                        (self.origin == Origin.bottom_right and
+                        outer % 2 == 1) or
+                        self.origin == Origin.top_right)
+                       or
+                       self.orientation == Orientation.vertically and
+                       ((self.origin == Origin.top_right and
+                        outer % 2 == 0) or
+                        (self.origin == Origin.bottom_right and
+                         outer % 2 == 1) or
+                        self.origin == Origin.bottom_left)
+                       else 1)
                 if (self.wire_mode == WireMode.zig_zag and i % 2 == mod) or \
                    (self.wire_mode == WireMode.line_by_line and
                        ((self.orientation == Orientation.horizontally and
                            (self.origin == Origin.bottom_right or
                             self.origin == Origin.top_right))
-                         or
+                        or
                         (self.orientation == Orientation.vertically and
                             (self.origin == Origin.bottom_left or
                              self.origin == Origin.bottom_right)))):
                     j = (inner - 1) - current_inner_count
                 led_index = j + current_outer_count * inner
-                pixel_coord_to_led_index[(i, current_inner_count) if
-                                         self.orientation == Orientation.horizontally else
-                                         (current_inner_count, i)] = led_index
+                coordinate = (i, current_inner_count) if \
+                    self.orientation == Orientation.horizontally else \
+                             (current_inner_count, i)
+                pixel_coord_to_led_index[coordinate] = led_index
                 current_inner_count += 1
             current_outer_count += 1
 
@@ -165,15 +179,29 @@ class Apa102(AbstractDisplay):
         elif self.color_type == ColorType.brg:
             red, green, blue = 2, 3, 1
 
-        for i in range(self.height):
-            for j in range(self.width):
-                col_index = (self.width - 1) - j
-                led_index = pixel_coord_to_led_index[i, col_index] * 4
-                virtual_to_physical_byte_indices[i, j] = \
-                    [led_index,
-                     led_index + red,
-                     led_index + green,
-                     led_index + blue]
+        for pixel_index in range(self.height * self.width):
+                # for each pixel in buffer
+                # calulate byte indices of pixel
+                pixel_index_spread = pixel_index * 4  # room for byte led,r,g,b
+                pixel_bytes_indices = [pixel_index_spread,
+                                       pixel_index_spread + red,
+                                       pixel_index_spread + green,
+                                       pixel_index_spread + blue]
+
+                # get coordinate of ith pixel
+                pixel_row = pixel_index // self.width
+                pixel_col = pixel_index - pixel_row * self.width
+
+                # get led index of led at pixel coordinate
+                led_index = pixel_coord_to_led_index[(pixel_row, pixel_col)]
+
+                # get coordinate of ith led
+                led_row = led_index // self.width
+                led_col = led_index - led_row * self.width
+
+                # set the transformation matrix accordingly
+                virtual_to_physical_byte_indices[(led_row, led_col)] = \
+                    pixel_bytes_indices
 
         return pixel_coord_to_led_index, virtual_to_physical_byte_indices
 

@@ -18,6 +18,7 @@
 
 import numpy as np
 import pygame
+import sys
 
 from display.abstract_display import AbstractDisplay
 
@@ -35,8 +36,14 @@ class Computer(AbstractDisplay):
         pygame.init()
         self.surface = pygame.display.set_mode(self.window_size)
         pygame.display.set_caption("RibbaPi {}x{}".format(width, height))
+        self.show()
 
     def show(self, gamma=False):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
         self.surface.fill((0, 0, 0))
 
         it = np.nditer([self.buffer[:, :, 0],
@@ -52,8 +59,8 @@ class Computer(AbstractDisplay):
                               self.size])
             it.iternext()
 
-        pygame.display.flip()
-        pygame.event.clear()
+        pygame.display.update()
+        #pygame.event.clear()
 
 
 if __name__ == "__main__":

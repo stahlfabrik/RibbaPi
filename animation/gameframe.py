@@ -29,30 +29,23 @@ from animation.abstract_animation import AbstractAnimation
 
 
 class GameframeAnimation(AbstractAnimation):
-    def __init__(self,  width, height, frame_queue, repeat, folder):
+    def __init__(self, width, height, frame_queue, repeat, folder):
         super().__init__(width, height, frame_queue, repeat)
-        self.folder = Path(folder).resolve()
+        self.folder = Path(folder)
+        if not self.folder.is_dir():
+            raise NotADirectoryError
         self.name = "gameframe.{}".format(self.folder.name)
 
         self.load_frames()
         self.read_config()
 
-        # if play_for == 0:
-        #     self.duration = self.intrinsic_duration()
-        # else:
-        #     self.duration = play_for
+        if not (self.loop or self.move_loop):
+            self.repeat = 0
 
-        # print(self)
+        print(self.name, self.intrinsic_duration())
 
-    # def intrinsic_duration(self):
-    #     # FIXME panoff needs accounting
-    #     durX = 0
-    #     if self.moveX > 0 and len(self.frames) > 0:
-    #         durX = (self.frames[0].shape[1] / self.moveX) * self.hold / 1000
-    #     durY = 0
-    #     if self.moveY > 0 and len(self.frames) > 0:
-    #         durY = (self.frames[0].shape[0] / self.moveY) * self.hold / 1000
-    #     return max([len(self.frames)*self.hold/1000, durX, durY])
+    def intrinsic_duration(self):
+        return sum(1 for _ in self.rendered_frames()) * self.hold/1000
 
     def __str__(self):
         return "Path: {}\n"\
@@ -71,29 +64,16 @@ class GameframeAnimation(AbstractAnimation):
                          self.move_loop,
                          self.panoff)
 
-    # def __str__(self):
-    #     return "Path: {}\n"\
-    #            "Name: {} frames: {} shape: {} duration: {}\n"\
-    #            "hold: {} loop: {} moveX: {} moveY: {} moveloop: {} "\
-    #            "panoff: {}\n"\
-    #            "".format(self.folder,
-    #                      self.name,
-    #                      str(len(self.frames)),
-    #                      self.frames[0].shape if len(self.frames) else
-    #                      "no frames available",
-    #                      self.duration,
-    #                      self.hold,
-    #                      self.loop,
-    #                      self.moveX,
-    #                      self.moveY,
-    #                      self.move_loop,
-    #                      self.panoff)
     def load_frames(self):
         self.frames = []
-        for bmp in list(sorted(self.folder.glob("*.bmp"),
-                               key=lambda bmpfile: int(bmpfile.stem))):
-            im = Image.open(str(bmp))
-            self.frames.append(np.array(im))
+        for path in list(sorted(self.folder.glob("*.bmp"),
+                                key=lambda bmpfile: int(bmpfile.stem))):
+            with open(str(path), 'rb') as f:
+                image = Image.open(f)
+                self.frames.append(np.array(image))
+            image = None
+        if len(self.frames) == 0:
+            raise AttributeError
 
     def read_config(self):
         self.hold = 100
@@ -196,10 +176,13 @@ class GameframeAnimation(AbstractAnimation):
                 time.sleep(self.hold/1000)
                 # if (time.time() - self.started) > self.duration:
                 #     break
-            if not self.repeat:
+            if self.repeat > 0:
+                self.repeat -= 1
+            elif self.repeat == 0:
                 self._running = False
 
-    def get_kwargs(self):
+    @property
+    def kwargs(self):
         return {"width": self.width, "height": self.height,
                 "frame_queue": self.frame_queue, "repeat": self.repeat,
                 "folder": self.folder}
