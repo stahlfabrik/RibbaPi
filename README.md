@@ -4,6 +4,8 @@ RibbaPi - APA102 based 16x16 LED-Matrix fitted inside Ribba picture frame, contr
 I made a video that documents the build process and shows off some of its capabilities:
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/UbVjETJd87c/0.jpg)](http://www.youtube.com/watch?v=UbVjETJd87c "RibbaPi - 16x16 APA102 LED matrix build in a Ribba frame controlled by Raspberry Pi with Python")
 
+**Good news: The Raspberry Pi Zero W is more than capable of running RibbaPi!** I plan do a new video showing it in action.
+
 These are some, but certainly not all, things that I used to build my RibbaPi:
 - Ikea Ribba picture frame, size 50x50cm
 - 5m, white PCB, 60 LEDs/m APA102 strip

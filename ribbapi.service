@@ -1,0 +1,17 @@
+[Unit]
+Description=RibbaPi script
+After=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/RibbaPi/
+ExecStart=/home/pi/RibbaPi/ribbapi.py
+Restart = always
+RestartSec = 5s
+StandardOutput=syslog
+StandardError=syslog
+
+[Install]
+WantedBy=multi-user.target

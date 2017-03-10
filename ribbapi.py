@@ -16,10 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# Notes
+# find . -name \*.pyc -delete
+
 from animation.gameframe import GameframeAnimation
 from animation.blm import BlmAnimation
 from animation.text import TextAnimation
 from animation.clock import ClockAnimation
+from animation.moodlight import MoodlightAnimation
 from server.ribbapi_http import RibbaPiHttpServer
 from server.tpm2_net import Tpm2NetServer
 
@@ -39,12 +43,6 @@ import threading
 # add config file and argparsing of it
 
 # sort animations case insensitive
-
-# currently broken:
-# gameframe.invader1-green 0.0
-# gameframe.invader1-red 0.0
-# gameframe.invader2-green 0.0
-# gameframe.invader2-red 0.0
 
 DISPLAY_WIDTH = 16
 DISPLAY_HEIGTH = 16
@@ -75,25 +73,28 @@ class RibbaPi():
         self.text_queue = queue.Queue()
         self.receiving_data = threading.Event()
 
-        self.gameframe_activated = True
+        self.gameframe_activated = False
         self.gameframe_repeat = -1
         self.gameframe_duration = 5
         self.gameframe_selected = []
 
-        self.blm_activated = True
+        self.blm_activated = False
         self.blm_repeat = -1
         self.blm_duration = 5
         self.blm_selected = []
 
-        self.play_random = False
-        self.animations = self.animation_generator()
-
+        self.clock_activated = False
         self.clock_last_shown = time.time()
         self.clock_show_every = 300
         self.clock_duration = 10
 
+        self.moodlight_activated = True
+
         # find and prepare installed animations
         self.refresh_animations()
+
+        self.play_random = False
+        self.animations = self.animation_generator()
 
         # start http server
         self.http_server = RibbaPiHttpServer(self)
@@ -175,6 +176,8 @@ class RibbaPi():
                 yield next(gameframes)
             if self.blm_activated:
                 yield next(blms)
+            if not (self.gameframe_activated or self.blm_activated):
+                yield None
 
     def gameframe_generator(self):
         i = -1
@@ -218,15 +221,21 @@ class RibbaPi():
         next_animation = None
         # check if there is an animation to resume
         if self.interrupted_animation_class:
-            next_animation = self.interrupted_animation_class(**self.interrupted_animation_kwargs)
+            next_animation = self.interrupted_animation_class(
+                **self.interrupted_animation_kwargs)
             self.interrupted_animation_class = None
             self.interrupted_animation_kwargs = None
-        elif self.clock_last_shown + self.clock_show_every < time.time():
+        elif self.clock_activated and \
+                (self.clock_last_shown + self.clock_show_every < time.time()):
             # it is time to show time again:
             next_animation = ClockAnimation(DISPLAY_WIDTH,
                                             DISPLAY_HEIGTH,
                                             self.frame_queue)
             self.clock_last_shown = time.time()
+        elif self.moodlight_activated:
+            next_animation = MoodlightAnimation(DISPLAY_WIDTH,
+                                               DISPLAY_HEIGTH,
+                                               self.frame_queue)
         else:
             next_animation = next(self.animations)
         return next_animation
@@ -263,20 +272,19 @@ class RibbaPi():
 
     def mainloop(self):
         # TODO start auto renewing timer for clock and predined texts
+
         try:
             while True:
                 self.process_frame_queue()
-
                 # if the current_animation is finished then cleanup
                 self.clean_finished_animation()
-
                 # check if there is text to display
                 self.process_text_queue()
-
                 # if there is currently no animation, start a new one
                 # check if external data (e.g. tpm2_net) is received
                 if not self.current_animation and not self.receiving_data.is_set():
                     self.current_animation = self.get_next_animation()
+
                     if self.current_animation:
                         self.current_animation.start()
                 # Check if current_animation has played long enough
