@@ -52,6 +52,8 @@ class RibbaPiHttpHandler(BaseHTTPRequestHandler):
             <fieldset>
             <legend>Configuration of RibbaPi</legend>""".encode("utf-8"))
 
+            self.wfile.write("<input name=\"brightness\" type=\"range\" min=\"0.0\" max=\"1.0\" step=\"0.02\" value=\"{}\"/> Brightness level<br>".format(self.server.ribbapi.display.brightness).encode("utf-8"))
+
             checkbox = "<input type=\"checkbox\" name=\"gameframe_activated\" value=\"1\" checked>Gameframe Animations<br>" if self.server.ribbapi.gameframe_activated else "<input type=\"checkbox\" name=\"gameframe_activated\" value=\"0\">Gameframe Animations<br>"
             self.wfile.write(checkbox.encode("utf-8"))
 
@@ -165,7 +167,8 @@ class RibbaPiHttpHandler(BaseHTTPRequestHandler):
                 post_data = self.rfile.read(content_length)
                 post_data = str(post_data, 'utf-8')
                 post_data_dict = urllib.parse.parse_qs(post_data)
-
+                if "brightness" in post_data_dict:
+                    self.server.ribbapi.display.brightness = float(post_data_dict["brightness"][0])
                 self.server.ribbapi.gameframe_activated = True if "gameframe_activated" in post_data_dict else False
                 self.server.ribbapi.blm_activated = True if "blm_activated" in post_data_dict else False
                 self.server.ribbapi.clock_activated = True if "clock_activated" in post_data_dict else False

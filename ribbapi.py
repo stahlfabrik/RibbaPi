@@ -51,7 +51,7 @@ HARDWARE = "APA102"
 
 class RibbaPi():
     def __init__(self):
-        os.chdir(os.path.dirname(__file__))
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
         if HARDWARE == 'APA102':
             from display.apa102 import Apa102
@@ -109,7 +109,7 @@ class RibbaPi():
                              daemon=True)
         self.tpm2_net_server_thread.start()
 
-        self.text_queue.put("RibbaPi started!😍")
+        self.text_queue.put("RibbaPi 👍")
 
     # New frame handling
     def process_frame_queue(self):

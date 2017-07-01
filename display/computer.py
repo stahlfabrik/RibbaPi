@@ -50,7 +50,7 @@ class Computer(AbstractDisplay):
                         self.buffer[:, :, 1],
                         self.buffer[:, :, 2]], flags=['multi_index'])
         while not it.finished:
-            color = (it[0], it[1], it[2])
+            color = (it[0] * self.brightness, it[1] * self.brightness, it[2] * self.brightness)
             (row, column) = it.multi_index
             pygame.draw.rect(self.surface, color,
                              [(self.margin + self.size) * column + self.margin,
