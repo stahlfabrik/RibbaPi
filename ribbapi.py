@@ -42,7 +42,6 @@ import threading
 
 # add config file and argparsing of it
 
-# sort animations case insensitive
 
 DISPLAY_WIDTH = 16
 DISPLAY_HEIGTH = 16
@@ -73,27 +72,27 @@ class RibbaPi():
         self.text_queue = queue.Queue()
         self.receiving_data = threading.Event()
 
-        self.gameframe_activated = False
+        self.gameframe_activated = True
         self.gameframe_repeat = -1
-        self.gameframe_duration = 5
+        self.gameframe_duration = 60
         self.gameframe_selected = []
 
         self.blm_activated = False
         self.blm_repeat = -1
-        self.blm_duration = 5
+        self.blm_duration = 60
         self.blm_selected = []
 
-        self.clock_activated = False
+        self.clock_activated = True
         self.clock_last_shown = time.time()
-        self.clock_show_every = 300
+        self.clock_show_every = 600
         self.clock_duration = 10
 
-        self.moodlight_activated = True
+        self.moodlight_activated = False
 
         # find and prepare installed animations
         self.refresh_animations()
 
-        self.play_random = False
+        self.play_random = True
         self.animations = self.animation_generator()
 
         # start http server
@@ -110,7 +109,7 @@ class RibbaPi():
                              daemon=True)
         self.tpm2_net_server_thread.start()
 
-        #self.text_queue.put("RibbaPi 👍")
+        self.text_queue.put("RibbaPi started!😍")
 
     # New frame handling
     def process_frame_queue(self):
@@ -123,6 +122,7 @@ class RibbaPi():
 
     # Text handling
     def process_text_queue(self):
+        #TODO move those two if checks down inside bigger if startement
         # check if external data (e.g. tpm2_net) is received
         if self.receiving_data.is_set():
             return
@@ -149,17 +149,17 @@ class RibbaPi():
     def refresh_animations(self):
         # gameframe
         self.gameframe_animations = []
-        for p in sorted(Path("resources/animations/gameframe/").glob("*")):
+        for p in sorted(Path("resources/animations/gameframe/").glob("*"), key=lambda s: s.name.lower()):
             if p.is_dir():
                 self.gameframe_animations.append(str(p))
-        for p in sorted(Path("resources/animations/gameframe_forum/").glob("*")):
+        for p in sorted(Path("resources/animations/gameframe_forum/").glob("*"), key=lambda s: s.name.lower()):
             if p.is_dir():
                 self.gameframe_animations.append(str(p))
         self.gameframe_selected = self.gameframe_animations.copy()
 
         # blm
         self.blm_animations = []
-        for p in sorted(Path("resources/animations/162-blms/").glob("*.blm")):
+        for p in sorted(Path("resources/animations/162-blms/").glob("*.blm"), key=lambda s: s.name.lower()):
             if p.is_file():
                 self.blm_animations.append(str(p))
         self.blm_selected = self.blm_animations.copy()
@@ -212,6 +212,28 @@ class RibbaPi():
                                    self.blm_selected[i])
             else:
                 yield None
+
+    def set_next_animation(self, path):
+        animation = None
+        if str(path).startswith("resources/animations/gameframe"):
+            if Path(path).is_dir():
+                animation = GameframeAnimation(DISPLAY_WIDTH,
+                                               DISPLAY_HEIGTH,
+                                               self.frame_queue,
+                                               self.gameframe_repeat,
+                                               path)
+
+        elif str(path).startswith("resources/animations/162-blms") and \
+                str(path).endswith("blm"):
+            if Path(path).is_file():
+                animation = BlmAnimation(DISPLAY_WIDTH,
+                                         DISPLAY_HEIGTH,
+                                         self.frame_queue,
+                                         self.blm_repeat,
+                                         path)
+
+        if animation:
+            self.store_animation_for_resume(animation)
 
     def store_animation_for_resume(self, animation):
         self.interrupted_animation_class = type(animation)

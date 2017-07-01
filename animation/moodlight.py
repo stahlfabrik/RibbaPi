@@ -92,7 +92,7 @@ class MoodlightAnimation(AbstractAnimation):
         frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
 
         if color_mode == "colorwheel":
-            colors = self.color_wheel_generator(100)
+            colors = self.color_wheel_generator(500)
         elif color_mode == "cyclecolors":
             colors = self.cycle_selected_colors_generator(5, 100)
 
@@ -120,7 +120,7 @@ class MoodlightAnimation(AbstractAnimation):
                 generator = self.frame_generator("cyclecolors", "random_dot")
 
             elif self.mode == "wish_down_up":
-                generator = self.frame_generator("cyclecolors", "wish_down_up")
+                generator = self.frame_generator("colorwheel", "wish_down_up")
 
             for frame in generator:
                 if self._running:

@@ -45,7 +45,36 @@ class RibbaPiHttpHandler(BaseHTTPRequestHandler):
             <input type="submit" value="Submit">
             </fieldset>
             </form>""".encode("utf-8"))
+
+            self.wfile.write("""
+            <h2>Configuration</h2>
+            <form action="api/v1/updateconfiguration" method="post">
+            <fieldset>
+            <legend>Configuration of RibbaPi</legend>""".encode("utf-8"))
+
+            checkbox = "<input type=\"checkbox\" name=\"gameframe_activated\" value=\"1\" checked>Gameframe Animations<br>" if self.server.ribbapi.gameframe_activated else "<input type=\"checkbox\" name=\"gameframe_activated\" value=\"0\">Gameframe Animations<br>"
+            self.wfile.write(checkbox.encode("utf-8"))
+
+            checkbox = "<input type=\"checkbox\" name=\"blm_activated\" value=\"1\" checked>Blinkenlights Animations<br>" if self.server.ribbapi.blm_activated else "<input type=\"checkbox\" name=\"blm_activated\" value=\"0\">Blinkenlights Animations<br>"
+            self.wfile.write(checkbox.encode("utf-8"))
+
+            checkbox = "<input type=\"checkbox\" name=\"clock_activated\" value=\"1\" checked>Clock Animation<br>" if self.server.ribbapi.clock_activated else "<input type=\"checkbox\" name=\"clock_activated\" value=\"0\">Clock Animations<br>"
+            self.wfile.write(checkbox.encode("utf-8"))
+
+            checkbox = "<input type=\"checkbox\" name=\"moodlight_activated\" value=\"1\" checked>Moodlight<br>" if self.server.ribbapi.moodlight_activated else "<input type=\"checkbox\" name=\"moodlight_activated\" value=\"0\">Moodlight<br>"
+            self.wfile.write(checkbox.encode("utf-8"))
+
+            self.wfile.write("""
+            <input type="submit" value="Update Configuration">
+            </fieldset>
+            </form>""".encode("utf-8"))
+
             self.wfile.write("""<h2>Animations</h2>
+
+            <form>
+            <button formaction="api/v1/next_animation" formmethod="post">Next animation!</button>
+            </form>
+
             <form action="api/v1/setgameframe" method="post">
             <fieldset>
             <legend>Choose gameframe animations to display</legend>""".encode("utf-8"))
@@ -63,12 +92,19 @@ class RibbaPiHttpHandler(BaseHTTPRequestHandler):
             self.wfile.write("</body></html>".encode("utf-8"))
         print(self.path)
         if self.path.startswith("/playnext"):
+            self.server.ribbapi.set_next_animation(self.path[len("/playnext/"):])
+            self.server.ribbapi.stop_current_animation()
             self.send_response(303)
             self.send_header('Location', '/')
             self.end_headers()
 
 
     def do_POST(self):
+        if self.path.startswith("/api/v1/next_animation"):
+            self.server.ribbapi.stop_current_animation()
+            self.send_response(303)
+            self.send_header('Location', '/')
+            self.end_headers()
         if self.path.startswith("/api/v1/displaytext"):
             content_length = int(self.headers['Content-Length'])
             if self.headers['Content-Type'] == "application/x-www-form-urlencoded":
@@ -123,3 +159,25 @@ class RibbaPiHttpHandler(BaseHTTPRequestHandler):
                     </script>
                     </body>
                     </html>""".encode("utf-8"))
+        if self.path.startswith("/api/v1/updateconfiguration"):
+            content_length = int(self.headers['Content-Length'])
+            if self.headers['Content-Type'] == "application/x-www-form-urlencoded":
+                post_data = self.rfile.read(content_length)
+                post_data = str(post_data, 'utf-8')
+                post_data_dict = urllib.parse.parse_qs(post_data)
+
+                self.server.ribbapi.gameframe_activated = True if "gameframe_activated" in post_data_dict else False
+                self.server.ribbapi.blm_activated = True if "blm_activated" in post_data_dict else False
+                self.server.ribbapi.clock_activated = True if "clock_activated" in post_data_dict else False
+                self.server.ribbapi.moodlight_activated = True if "moodlight_activated" in post_data_dict else False
+
+                self.send_response(200)
+                self.send_header('Content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write("""<html>
+                <body>RibbaPi configuration updated!<br><br>
+                <script>
+                document.write('<a href="' + document.referrer + '">Go Back</a>');
+                </script>
+                </body>
+                </html>""".encode("utf-8"))
