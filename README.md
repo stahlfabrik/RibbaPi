@@ -4,12 +4,15 @@ RibbaPi - APA102 based 16x16 LED-Matrix fitted inside Ribba picture frame, contr
 I made a video that documents the build process and shows off some of its capabilities:
 [![IMAGE ALT TEXT](http://img.youtube.com/vi/UbVjETJd87c/0.jpg)](http://www.youtube.com/watch?v=UbVjETJd87c "RibbaPi - 16x16 APA102 LED matrix build in a Ribba frame controlled by Raspberry Pi with Python")
 
-**Good news: The Raspberry Pi Zero W is more than capable of running RibbaPi!** I plan do a new video showing it in action.
+**Good news: The Raspberry Pi Zero W is more than capable of running RibbaPi!**
+
+Here is an update video on the latest changes to RibbaPi and gives a peek at the current software:
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/-xVK28GpX0w/0.jpg)](https://www.youtube.com/watch?v=-xVK28GpX0w "Update on RibbaPi - 16x16 APA102 LED matrix build in a Ribba frame controlled by Raspberry Pi")
 
 These are some, but certainly not all, things that I used to build my RibbaPi:
 - Ikea Ribba picture frame, size 50x50cm
 - 5m, white PCB, 60 LEDs/m APA102 strip
-- Raspberry Pi 3 (if a Raspberry Pi Zero turns out to be powerfull enough - it would be cool to make that internal to the picture frame)
+- Raspberry Pi 3 and later a Raspberry Pi Zero W
 - 74AHCT125 level shifter
 - raspberry pi prototyping hat for soldering the logic level converter circuit
 - 488x488x3,2mm wood plate (HDF)
@@ -50,4 +53,3 @@ TODO-List:
 - moodlight animation module!
 - moodlight control via html server
 - maybe make html server show gif previews of all animations
-- make ribba pi autostart, make Raspberry file system read only (both not part of this repo I guess, we will see.)
